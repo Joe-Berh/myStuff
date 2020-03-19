@@ -1,0 +1,154 @@
+
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+// #define NOISY
+class String
+{
+private:
+    size_t size;
+    char* str;
+public:  
+    String(const char* str = "")
+        : size(strlen(str)), str(strcpy(new char[size + 1], str) ) 
+        {
+            #ifdef NOISY
+            cout << "String(const char* = '') for " << this << endl;
+            #endif 
+        }
+
+    explicit String(size_t n, char fill)
+        : size(n), str((char*) memset(new char[n + 1], fill, n) )
+        {
+            #ifdef NOISY
+            cout << "String(size_t, char) for " << this << endl;
+            #endif 
+            str[n] = '\0'; 
+        }
+
+    // String(const String& arg)
+    //     : String(arg.str)
+    
+    String(const String& arg) : size(arg.size), 
+        str( strcpy(new char[arg.size + 1], arg.str)) {
+            #ifdef NOISY
+            cout << "String(const String&) for " << this << " with arg = " << &arg << endl;
+            #endif
+        }
+
+    void append(const String& arg)
+    {
+        #ifdef NOISY
+            cout << "append(const String&) for " << this << " with arg = " << &arg << endl;
+        #endif
+        size += arg.size;
+        char* new_str = new char[size + 1];
+        strcpy(new_str, str);
+        strcat(new_str, arg.str);
+        delete [] str;
+        str = new_str;
+    }
+
+    void swap(String& arg)
+    {
+        std::swap(size, arg.size);
+        std::swap(str, arg.str);
+    }
+
+    String& operator=(const String& rhs)
+    {
+        #ifdef NOISY
+            cout << "operator=(const String&) for " << this << " with rhs = " << &rhs << endl;
+        #endif
+        String tmp = rhs;
+        swap(tmp);
+        return *this; // !  !   !
+    }
+
+    
+    void operator+=(const String& rhs)
+    {
+        append(rhs);
+    }    
+
+    ~String()
+    {
+        #ifdef NOISY
+            if (str)
+                cout << "Dror for " << this << endl;
+            else cout << "Dror for NULLPTR " << this << endl;
+        #endif
+        delete [] str;
+    }
+
+    operator bool() const 
+    {  return size !=  0 ? true : false; }
+
+
+    size_t getSize() { return size;}
+
+    friend ostream& operator<<(ostream& out, const String& s);
+
+    private:
+    struct SliceString;
+    public:
+    SliceString operator[](size_t) const;
+
+    // #define MOVE
+    #ifdef MOVE
+    String(String&& init)
+        : str{init.str}, size{init.size}
+    {   
+        #ifdef NOISY
+            cout << "(move) String(String&&) for " << this << " with arg = " << &init << endl;
+        #endif
+        init.str = nullptr;    
+    }
+    #endif
+
+};
+
+ostream& operator<<(ostream& out, const String& s)
+{
+    #ifdef NOISY
+            cout << "operator<< for " << &s << endl;
+    #endif
+    out << s.str;
+    return out;
+}
+
+struct String::SliceString
+{
+    size_t start_pos;
+    const char* source_string;
+    char* result;
+    SliceString(size_t start_pos, char* string_to_slice)    // берем на этот класс ответственность: быть осторожным, владея исходно  строкой
+        : start_pos(start_pos), result(NULL)// const  делает ситуацию безопаснее
+    {
+        source_string = string_to_slice;
+    }
+    String operator[](size_t end_pos) 
+    {
+        size_t size = end_pos - start_pos;
+        result = new char[size];
+        strncpy(result, source_string + start_pos, size);
+        return result;      // вернуть const char* - ужаснейшая идея
+    }
+    ~SliceString() { delete [] result; }
+};
+String::SliceString String::operator[](size_t start_pos) const
+{
+    return {start_pos, this->str};   // ?
+}
+
+
+#define LOG(x) cout << x << endl;
+int main() {
+    
+    String  hello("hello");
+    hello = "HELLO" ;
+    cout << hello[0][4];
+    
+    return 0;
+}
